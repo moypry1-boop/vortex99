@@ -1,0 +1,154 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Fields: uid, email, displayName, photoURL, role, createdAt
+    //
+    // Collection: products
+    // Fields: id, category, subCategory, name, description, price, currency, imageUrl, purchaseLink, features, createdAt
+    //
+    // Collection: bookings
+    // Fields: id, userId, serverId, game, planName, status, paymentMethod, expiryDate, createdAt, serverIp
+    //
+    // Collection: tickets
+    // Fields: id, ticketNumber, userId, subject, message, screenshotUrl, status, createdAt, botResponse
+    //
+    // Collection: applications
+    // Fields: id, userId, name, experience, status, createdAt
+    //
+    // Collection: reviews
+    // Fields: id, userId, userName, userPhoto, rating, comment, createdAt
+    //
+    // Collection: config
+    // Fields: siteName, siteLogo, sitePassword, vodafoneNumber, etisalatNumber, socialLinks, botName, botEnabledSubjects, botMessages
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (getUserData().role == 'admin' ||
+          (request.auth.token.email == "moypry1@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isSupport() {
+      return isAuthenticated() && (getUserData().role == 'support' || isAdmin());
+    }
+
+    function isManager() {
+      return isAuthenticated() && (getUserData().role == 'manager' || isAdmin());
+    }
+
+    function isBotManager() {
+      return isAuthenticated() && (getUserData().role == 'bot_manager' || isAdmin());
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'role']) &&
+             data.uid is string &&
+             data.email is string &&
+             data.role in ['user', 'admin', 'support', 'manager', 'bot_manager'];
+    }
+
+    function isValidBooking(data) {
+      return data.keys().hasAll(['userId', 'planName', 'status', 'createdAt']) &&
+             (data.userId == request.auth.uid || isAdmin());
+    }
+
+    function isValidTicket(data) {
+      return data.keys().hasAll(['userId', 'subject', 'message', 'status', 'createdAt', 'ticketNumber']) &&
+             (data.userId == request.auth.uid || isSupport());
+    }
+
+    function isValidApplication(data) {
+      return data.keys().hasAll(['userId', 'name', 'status', 'createdAt']) &&
+             (data.userId == request.auth.uid || isAdmin());
+    }
+
+    function isValidProduct(data) {
+      return data.keys().hasAll(['name', 'price', 'category', 'createdAt']) &&
+             data.name is string && data.price is number &&
+             data.category in ['Server', 'Script', 'Charging'];
+    }
+
+    function isValidReview(data) {
+      return data.keys().hasAll(['userId', 'rating', 'comment', 'createdAt']) &&
+             data.userId == request.auth.uid;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (isOwner(userId) || isSupport());
+      allow create: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == 'user';
+      allow update: if isAuthenticated() && (isOwner(userId) || isAdmin()) && 
+                    (
+                      // Admin can update roles, or owner can update non-role fields
+                      (isAdmin() || (isOwner(userId) && request.resource.data.role == resource.data.role))
+                    );
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isManager() && isValidProduct(request.resource.data);
+    }
+
+    match /bookings/{bookingId} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || isSupport());
+      allow create: if isAuthenticated() && isValidBooking(request.resource.data);
+      allow update: if isSupport();
+      allow delete: if isAdmin();
+    }
+
+    match /tickets/{ticketId} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || isSupport());
+      allow create: if isAuthenticated() && isValidTicket(request.resource.data);
+      allow update: if isSupport();
+      allow delete: if isAdmin();
+    }
+
+    match /applications/{appId} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
+      allow create: if isAuthenticated() && isValidApplication(request.resource.data);
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && isValidReview(request.resource.data);
+      allow update: if isOwner(resource.data.userId) || isAdmin();
+      allow delete: if isOwner(resource.data.userId) || isAdmin();
+    }
+
+    match /announcements/{announcementId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+
+    match /config/{configId} {
+      allow read: if true;
+      allow write: if isBotManager();
+    }
+  }
+}
