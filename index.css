@@ -1,0 +1,63 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --animate-marquee: marquee 40s linear infinite;
+  --animate-spin-slow: spin 20s linear infinite;
+  --animate-pulse-slow: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+}
+
+@layer base {
+  body {
+    @apply bg-[#050505] text-zinc-100 selection:bg-red-600 selection:text-white antialiased font-sans overflow-x-hidden;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display tracking-tight font-black;
+  }
+}
+
+@layer utilities {
+  .bg-grid {
+    background-image: 
+      linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  .bg-radial-gradient {
+    background: radial-gradient(circle at center, var(--tw-gradient-from) 0%, var(--tw-gradient-to) 100%);
+  }
+
+  .text-glow {
+    text-shadow: 0 0 20px rgba(220, 38, 38, 0.5), 0 0 40px rgba(220, 38, 38, 0.2);
+  }
+
+  .glass-card {
+    @apply bg-white/[0.03] backdrop-blur-3xl border border-white/10 hover:border-red-600/50 transition-all duration-500 rounded-3xl shadow-2xl;
+  }
+
+  .cyber-gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-red-600;
+  }
+
+  .marquee {
+    @apply flex whitespace-nowrap overflow-hidden;
+  }
+
+  .marquee-content {
+    @apply flex items-center gap-12 animate-marquee;
+  }
+
+  .border-gradient {
+    border-image: linear-gradient(to right, #dc2626, transparent) 1;
+  }
+}
